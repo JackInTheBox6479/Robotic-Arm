@@ -1,6 +1,0 @@
-{
-    "board": "arduino:avr:uno",
-    "port": "COM6",
-    "sketch": "Robotic Arm.ino",
-     "output": "C:\\Temp" 
-}
