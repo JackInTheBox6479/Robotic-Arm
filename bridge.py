@@ -32,7 +32,6 @@ try:
                 if current_command != last_command:
                     ser.write(current_command.encode())
                     last_command = current_command
-                    print(f"Stepper: {current_command}")
 
                 left_stick_y = joystick.get_axis(1)
                 servo_angle = int((left_stick_y + 1) * 90)
@@ -40,12 +39,10 @@ try:
                 if abs(servo_angle - last_servo_angle) > 2:
                     ser.write(f"V{servo_angle}\n".encode())
                     last_servo_angle = servo_angle
-                    print(f"Servo Angle: {servo_angle}")
 
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == 9:
                     ser.write(b'Z')
-                    print("Sent: ZERO")
 
         time.sleep(0.01)
 except KeyboardInterrupt:
