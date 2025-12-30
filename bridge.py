@@ -43,6 +43,8 @@ try:
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == 9:
                     ser.write(b'Z')
+                if event.button == 8:
+                    ser.write(b'H')
 
         time.sleep(0.01)
 except KeyboardInterrupt:
