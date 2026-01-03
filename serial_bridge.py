@@ -1,0 +1,60 @@
+import pygame, serial, time
+
+try:
+    ser = serial.Serial('COM6', 115200, timeout=0)
+    time.sleep(2)
+except Exception as e:
+    print(f"Could not open serial port: {e}")
+    exit()
+
+pygame.init()
+pygame.joystick.init()
+if pygame.joystick.get_count() == 0:
+    exit()
+
+joystick = pygame.joystick.Joystick(0)
+joystick.init()
+
+RJoystick = 9
+LJoystick = 8
+
+last_base = "Base_Stop"
+last_shoulder = "Shoulder_Stop"
+
+try:
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+            
+            if event.type == pygame.JOYBUTTONDOWN:
+                if event.button == LJoystick:
+                    ser.write(b'Set_Zero\n')
+                
+                if event.button == RJoystick:
+                    ser.write(b'Zero\n')
+
+        rx = joystick.get_axis(2) 
+        ly = joystick.get_axis(1)
+
+        if rx < -0.5: current_base = "Base_CW"
+        elif rx > 0.5: current_base = "Base_CCW"
+        else: current_base = "Base_Stop"
+
+        if ly < -0.5: current_shoulder = "Shoulder_CW"
+        elif ly > 0.5: current_shoulder = "Shoulder_CCW"
+        else: current_shoulder = "Shoulder_Stop"
+
+        if current_base != last_base:
+            ser.write(f"{current_base}\n".encode())
+            last_base = current_base
+
+        if current_shoulder != last_shoulder:
+            ser.write(f"{current_shoulder}\n".encode())
+            last_shoulder = current_shoulder
+
+        time.sleep(0.01) 
+
+except KeyboardInterrupt:
+    ser.close()
+    pygame.quit()
