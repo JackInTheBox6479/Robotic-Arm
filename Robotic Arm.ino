@@ -2,7 +2,6 @@
 #include <VarSpeedServo.h>
 
 AccelStepper baseStepper(4, 2, 4, 3, 5);
-AccelStepper baseCounterStepper(4, 10, 12, 11, 13);
 AccelStepper shoulderStepper(4, 9, 7, 8, 6);
 
 int baseGearRatio = 3;
@@ -18,91 +17,176 @@ VarSpeedServo wrist;
 String inputBuffer = "";
 long base_rot = 0;      
 long shoulder_rot = 0;
+#define PI 3.141592653589793
+const double L1 = 4.0; 
+const double L2 = 4.0; 
+const double STEPS_PER_REV = 2048.0;
 
 void setup() {
     Serial.begin(115200);
 
-    baseStepper.setMaxSpeed(50);
+    baseStepper.setMaxSpeed(baseMaxSpeed);
     baseStepper.setAcceleration(400);
-
-    baseCounterStepper.setMaxSpeed(100);
-    baseCounterStepper.setAcceleration(400);
   
-    shoulderStepper.setMaxSpeed(200);
-    shoulderStepper.setAcceleration(400);
+    shoulderStepper.setMaxSpeed(shoulderMaxSpeed);
+    shoulderStepper.setAcceleration(800);
 
     elbow.attach(ELBOW_PIN);
     elbow.write(90, 30, true);
     wrist.attach(WRIST_PIN);
     wrist.write(90, 30, true);
+
+    /*moveMotorsToPoint(4.0, 0.0, 2.0); 
+    delay(2000);
+
+    // Run the straight line path
+    moveInLine(4.0, 0.0, 2.0, 4.0, 0.0, 6.0, 200);
+
+    // Return to a safe position
+    delay(2000);
+    moveMotorsToPoint(4.0, 0.0, 4.0);
+
+   moveMotorsToPoint(4.0, 0.0, 4.0); 
+    delay(2000);
+
+    // 2. Draw the 2D Vertical Circle
+    drawCircle2D(4.0, 4.0, 1.0, 180); // CenterX 4.0, CenterZ 4.0, Radius 2.0, 180 Steps
+
+    // 3. Return to a safe position
+    delay(2000);
+    moveMotorsToPoint(4.0, 0.0, 4.0);
+    */
 }
 
 void loop() {
-    //  readSerial();
+    runTestSequence();
+}
 
-    baseStepper.runSpeed();
-    baseCounterStepper.runSpeed();
-    shoulderStepper.runSpeed();
+void drawCircle2D(double centerX, double centerZ, double radius, int steps) {
+    double currentX, currentZ;
+    double currentY = 0.0; 
+    double theta;
+    const double FIXED_BASE_ANGLE = 0.0; 
+
+    for (int i = 0; i <= steps; i++) {
+        theta = ((double)i / steps) * 2.0 * PI;
+        currentX = centerX + radius * cos(theta);
+        currentZ = centerZ + radius * sin(theta);
+        
+        moveMotorsToPoint(currentX, currentY, currentZ); 
+    }
+}
+
+void moveInLine(double x1, double y1, double z1, double x2, double y2, double z2, int steps) {
+    double dx = (x2 - x1) / steps;
+    double dy = (y2 - y1) / steps;
+    double dz = (z2 - z1) / steps;
+    double currentX, currentY, currentZ;
+
+    for (int i = 0; i <= steps; i++) {
+        currentX = x1 + i * dx;
+        currentY = y1 + i * dy;
+        currentZ = z1 + i * dz;
+
+        moveMotorsToPoint(currentX, currentY, currentZ);
+    }
+}
+
+void runTestSequence() {
+    Serial.println("Center - Straight up");
+    moveMotorsToPoint(0, 0, 8);
+    delay(2000);
+
+    Serial.println("Full Extension - Right");
+    moveMotorsToPoint(8, 0, 0);
+    delay(2000);
+
+    Serial.println("Full Extension - Back");
+    moveMotorsToPoint(0, 8, 0);
+    delay(2000);
+
+    Serial.println("Mid-Air Symmetric");
+    moveMotorsToPoint(4, 0, 4);
+    delay(2000);
     
-    moveMotorsTo(1000, 400, 0, 0);
+    Serial.println("High Reach, Bent");
+    moveMotorsToPoint(6, 0, 5);
     delay(2000);
-    moveMotorsTo(-1000, -400, 180, 180);
-    delay(2000);
-    moveMotorsTo(0, 0, 90, 90);
+
+    Serial.println("Return Home");
+    moveMotorsToPoint(0, 0, 8);
     delay(2000);
 }
 
-void moveMotorsTo(long baseTarget, long shoulderTarget, int elbowTarget, int wristTarget) {
-    long distBase = abs((baseTarget - baseStepper.currentPosition()) * baseGearRatio);
-    long distShoulder = abs((shoulderTarget - shoulderStepper.currentPosition()) * shoulderGearRatio);
+void moveMotorsToPoint(double x, double y, double z) {
+    double baseAngle = atan2(y, x) * 180.0 / PI;
 
-    long maxDistance = max(distBase, distShoulder);
+    double l = sqrt(x * x + y * y);
+    double h_sq = l * l + z * z; 
+    double h = sqrt(h_sq);
 
-    if (maxDistance == 0) {
-      return;
+    if (h > (L1 + L2) || h < fabs(L1 - L2)) {
+        Serial.println("Target point is out of reach.");
+        return;
     }
 
-    float maxSpeedBase = baseMaxSpeed * ((float)distBase / maxDistance);
-    float maxSpeedShoulder = shoulderMaxSpeed * ((float)distShoulder / maxDistance);
+    double cos_beta = (L1*L1 + L2*L2 - h_sq) / (2.0 * L1 * L2);
+    cos_beta = max(-1.0, min(1.0, cos_beta));
+    double elbow_internal_angle = acos(cos_beta); 
+    
+    double cos_gamma = (L1*L1 + h_sq - L2*L2) / (2.0 * L1 * h);
+    cos_gamma = max(-1.0, min(1.0, cos_gamma));
 
-    if(maxSpeedBase > baseMaxSpeed) {
-        maxSpeedBase = baseMaxSpeed;
-    }
-    if(maxSpeedShoulder > shoulderMaxSpeed) {
-        maxSpeedShoulder = shoulderMaxSpeed;
-    }
+    double gamma = acos(cos_gamma);
+    double phi = atan2(z, l); 
 
+    double shoulderAngleRad = phi + gamma;
+    double elbowAngleRad = PI - elbow_internal_angle;
+    double shoulderAngle = shoulderAngleRad * 180.0 / PI;
+    double elbowAngle = elbowAngleRad * 180.0 / PI;
+
+    Serial.println("Base Angle: " + String(baseAngle) + " Shoulder Angle: " + String(shoulderAngle) + " Elbow Angle: " + String(elbowAngle));
+    moveToAngle(baseAngle, shoulderAngle, elbowAngle);
+}
+
+void moveToAngle(double baseAngle, double shoulderAngle, double elbowAngle) {
+    long baseTarget = round((baseAngle / 360.0) * STEPS_PER_REV * baseGearRatio);
+    long shoulderTarget = round(((shoulderAngle - 90) / 360.0) * STEPS_PER_REV * shoulderGearRatio);
+
+    int elbowTarget = round(90 + elbowAngle); 
+    
+    int wristTarget = 90;
+
+    moveMotorsToPosition(baseTarget, shoulderTarget, elbowTarget, wristTarget);
+}
+
+void moveMotorsToPosition(long baseTarget, long shoulderTarget, int elbowTarget, int wristTarget) {
     baseStepper.setMaxSpeed(baseMaxSpeed);
-    baseCounterStepper.setMaxSpeed(baseMaxSpeed);
     shoulderStepper.setMaxSpeed(shoulderMaxSpeed);
 
-    baseStepper.moveTo(baseTarget * baseGearRatio);
-    baseCounterStepper.moveTo(baseTarget * baseGearRatio);
-    shoulderStepper.moveTo(shoulderTarget * shoulderGearRatio);
-        
+    baseStepper.moveTo(baseTarget);
+    shoulderStepper.moveTo(shoulderTarget);
     
     while (shoulderStepper.distanceToGo() != 0 || baseStepper.distanceToGo() != 0) {
-        reduceShoulderTorque(elbowTarget, shoulderTarget);
+        //reduceShoulderTorque(elbowTarget, shoulderTarget);
         wrist.write(wristTarget, 30, false);
-        shoulderStepper.run();baseStepper.run();
-        baseCounterStepper.run();
+        elbow.write(elbowTarget, 30, false);
+        shoulderStepper.run();
+        baseStepper.run();
     }
     
-    elbow.write(elbowTarget, 75, true);
+    elbow.write(elbowTarget, 75, false);
 }
 
 void reduceShoulderTorque(int elbowTarget, int shoulderTarget) {
     if(shoulderStepper.currentPosition() >= 300 && shoulderTarget < 300) {
         elbow.write(180, 100, true);
-        Serial.println("1");
     }
     else if (shoulderStepper.currentPosition() <= -300 && shoulderTarget > -300) {
         elbow.write(0, 100, true);
-        Serial.println("2");
     }
     else {
         elbow.write(elbowTarget, 30, false);
-        Serial.println("3");
     }
 }
 
@@ -121,17 +205,13 @@ void readSerial() {
 void processCommand(String cmd) {
     cmd.trim();
     if (cmd == "Base_CW") {
-        Serial.println("Base_CW");
         baseStepper.setSpeed(400);
-        baseCounterStepper.setSpeed(-400);
     } 
     else if (cmd == "Base_CCW") {
         baseStepper.setSpeed(-400); 
-        baseCounterStepper.setSpeed(400);
     } 
     else if (cmd == "Base_Stop") {
         baseStepper.setSpeed(0);
-        baseCounterStepper.setSpeed(0);
     }
 
   
@@ -147,15 +227,13 @@ void processCommand(String cmd) {
 
  
     else if (cmd == "Zero") {
-        moveMotorsTo(500, 0, 90, 90);
+        moveMotorsToPosition(500, 0, 90, 90);
     }
     else if (cmd == "Set_Zero") {
         baseStepper.setSpeed(0);
-        baseCounterStepper.setSpeed(0);
         shoulderStepper.setSpeed(0);
     
         baseStepper.setCurrentPosition(0);
-        baseCounterStepper.setCurrentPosition(0);
         shoulderStepper.setCurrentPosition(0);
     }
 }
