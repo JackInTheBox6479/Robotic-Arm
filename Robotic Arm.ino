@@ -1,8 +1,8 @@
 #include <AccelStepper.h>
 #include <VarSpeedServo.h>
 
-AccelStepper baseStepper(4, 10, 12, 11, 13);
-AccelStepper baseCounterStepper(4, 2, 4, 3, 5);
+AccelStepper baseStepper(4, 2, 4, 3, 5);
+AccelStepper baseCounterStepper(4, 10, 12, 11, 13);
 AccelStepper shoulderStepper(4, 9, 7, 8, 6);
 
 int baseGearRatio = 3;
@@ -22,7 +22,7 @@ long shoulder_rot = 0;
 void setup() {
     Serial.begin(115200);
 
-    baseStepper.setMaxSpeed(100);
+    baseStepper.setMaxSpeed(50);
     baseStepper.setAcceleration(400);
 
     baseCounterStepper.setMaxSpeed(100);
