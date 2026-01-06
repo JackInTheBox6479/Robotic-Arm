@@ -26,7 +26,7 @@ void setup() {
     Serial.begin(115200);
 
     baseStepper.setMaxSpeed(baseMaxSpeed);
-    baseStepper.setAcceleration(400);
+    baseStepper.setAcceleration(800);
   
     shoulderStepper.setMaxSpeed(shoulderMaxSpeed);
     shoulderStepper.setAcceleration(800);
@@ -59,7 +59,7 @@ void setup() {
 }
 
 void loop() {
-    runTestSequence();
+    runTestSequence(2);
 }
 
 void drawCircle2D(double centerX, double centerZ, double radius, int steps) {
@@ -92,31 +92,63 @@ void moveInLine(double x1, double y1, double z1, double x2, double y2, double z2
     }
 }
 
-void runTestSequence() {
-    Serial.println("Center - Straight up");
-    moveMotorsToPoint(0, 0, 8);
-    delay(2000);
+void runTestSequence(int sqnc) {
+    if(sqnc == 1) {
+        Serial.println("Center - Straight up");
+        moveMotorsToPoint(0, 0, 8);
+        delay(5000);
 
-    Serial.println("Full Extension - Right");
-    moveMotorsToPoint(8, 0, 0);
-    delay(2000);
+        Serial.println("Full Extension - Right");
+        moveMotorsToPoint(8, 0, 0);
+        delay(5000);
 
-    Serial.println("Full Extension - Back");
-    moveMotorsToPoint(0, 8, 0);
-    delay(2000);
+        Serial.println("Full Extension - Back");
+        moveMotorsToPoint(0, 8, 0);
+        delay(5000);
 
-    Serial.println("Mid-Air Symmetric");
-    moveMotorsToPoint(4, 0, 4);
-    delay(2000);
+        Serial.println("Mid-Air Symmetric");
+        moveMotorsToPoint(4, 0, 4);
+        delay(5000);
     
-    Serial.println("High Reach, Bent");
-    moveMotorsToPoint(6, 0, 5);
-    delay(2000);
+        Serial.println("High Reach, Bent");
+        moveMotorsToPoint(6, 0, 5);
+        delay(5000);
 
-    Serial.println("Return Home");
-    moveMotorsToPoint(0, 0, 8);
-    delay(2000);
+        Serial.println("Return Home");
+        moveMotorsToPoint(0, 0, 8);
+        delay(5000);
+    }
+    else if (sqnc == 2) {
+        Serial.println("(0, 0, 8)");
+        moveMotorsToPoint(0, 0, 8);
+        delay(1000);
+
+        Serial.println("(5.65, 5.65, 0)");
+        moveMotorsToPoint(5.65, 5.65, 0);
+        delay(1000);
+
+        Serial.println("(-5.65, -5.65, 0)");
+        moveMotorsToPoint(-5.65, -5.65, 0);
+        delay(1000);
+
+        Serial.println("(0, -5.65, 5.65)");
+        moveMotorsToPoint(0, -5.65, 5.65);
+        delay(1000);
+    
+        Serial.println("(3, -2, 4)");
+        moveMotorsToPoint(3, -2, 4);
+        delay(1000);
+
+        Serial.println("(-2, 6, 3)");
+        moveMotorsToPoint(-2, 6, -3);
+        delay(1000);
+
+        Serial.println("(-3, 0, -3)");
+        moveMotorsToPoint(-3, 0, -3);
+        delay(1000);
+    }
 }
+
 
 void moveMotorsToPoint(double x, double y, double z) {
     double baseAngle = atan2(y, x) * 180.0 / PI;
