@@ -19,7 +19,7 @@ long base_rot = 0;
 long shoulder_rot = 0;
 #define PI 3.141592653589793
 const double L1 = 4.0; 
-const double L2 = 4.0; 
+const double L2 = 7.25; 
 const double STEPS_PER_REV = 2048.0;
 
 void setup() {
@@ -35,61 +35,10 @@ void setup() {
     elbow.write(90, 30, true);
     wrist.attach(WRIST_PIN);
     wrist.write(90, 30, true);
-
-    /*moveMotorsToPoint(4.0, 0.0, 2.0); 
-    delay(2000);
-
-    // Run the straight line path
-    moveInLine(4.0, 0.0, 2.0, 4.0, 0.0, 6.0, 200);
-
-    // Return to a safe position
-    delay(2000);
-    moveMotorsToPoint(4.0, 0.0, 4.0);
-
-   moveMotorsToPoint(4.0, 0.0, 4.0); 
-    delay(2000);
-
-    // 2. Draw the 2D Vertical Circle
-    drawCircle2D(4.0, 4.0, 1.0, 180); // CenterX 4.0, CenterZ 4.0, Radius 2.0, 180 Steps
-
-    // 3. Return to a safe position
-    delay(2000);
-    moveMotorsToPoint(4.0, 0.0, 4.0);
-    */
 }
 
 void loop() {
     runTestSequence(2);
-}
-
-void drawCircle2D(double centerX, double centerZ, double radius, int steps) {
-    double currentX, currentZ;
-    double currentY = 0.0; 
-    double theta;
-    const double FIXED_BASE_ANGLE = 0.0; 
-
-    for (int i = 0; i <= steps; i++) {
-        theta = ((double)i / steps) * 2.0 * PI;
-        currentX = centerX + radius * cos(theta);
-        currentZ = centerZ + radius * sin(theta);
-        
-        moveMotorsToPoint(currentX, currentY, currentZ); 
-    }
-}
-
-void moveInLine(double x1, double y1, double z1, double x2, double y2, double z2, int steps) {
-    double dx = (x2 - x1) / steps;
-    double dy = (y2 - y1) / steps;
-    double dz = (z2 - z1) / steps;
-    double currentX, currentY, currentZ;
-
-    for (int i = 0; i <= steps; i++) {
-        currentX = x1 + i * dx;
-        currentY = y1 + i * dy;
-        currentZ = z1 + i * dz;
-
-        moveMotorsToPoint(currentX, currentY, currentZ);
-    }
 }
 
 void runTestSequence(int sqnc) {
@@ -119,20 +68,20 @@ void runTestSequence(int sqnc) {
         delay(5000);
     }
     else if (sqnc == 2) {
-        Serial.println("(0, 0, 8)");
-        moveMotorsToPoint(0, 0, 8);
+        Serial.println("(0, 0, 11.25)");
+        moveMotorsToPoint(0, 0, 11.25);
         delay(1000);
 
-        Serial.println("(5.65, 5.65, 0)");
-        moveMotorsToPoint(5.65, 5.65, 0);
+        Serial.println("(7.95, 7.95, 0)");
+        moveMotorsToPoint(7.95, 7.95, 0);
         delay(1000);
 
-        Serial.println("(-5.65, -5.65, 0)");
-        moveMotorsToPoint(-5.65, -5.65, 0);
+        Serial.println("(-7.95, -7.95, 0)");
+        moveMotorsToPoint(-7.95, -7.95, 0);
         delay(1000);
 
-        Serial.println("(0, -5.65, 5.65)");
-        moveMotorsToPoint(0, -5.65, 5.65);
+        Serial.println("(0, -7.95, 7.95)");
+        moveMotorsToPoint(0, -7.95, 7.95);
         delay(1000);
     
         Serial.println("(3, -2, 4)");
@@ -148,7 +97,6 @@ void runTestSequence(int sqnc) {
         delay(1000);
     }
 }
-
 
 void moveMotorsToPoint(double x, double y, double z) {
     double baseAngle = atan2(y, x) * 180.0 / PI;
@@ -177,7 +125,6 @@ void moveMotorsToPoint(double x, double y, double z) {
     double shoulderAngle = shoulderAngleRad * 180.0 / PI;
     double elbowAngle = elbowAngleRad * 180.0 / PI;
 
-    Serial.println("Base Angle: " + String(baseAngle) + " Shoulder Angle: " + String(shoulderAngle) + " Elbow Angle: " + String(elbowAngle));
     moveToAngle(baseAngle, shoulderAngle, elbowAngle);
 }
 
@@ -200,7 +147,6 @@ void moveMotorsToPosition(long baseTarget, long shoulderTarget, int elbowTarget,
     shoulderStepper.moveTo(shoulderTarget);
     
     while (shoulderStepper.distanceToGo() != 0 || baseStepper.distanceToGo() != 0) {
-        //reduceShoulderTorque(elbowTarget, shoulderTarget);
         wrist.write(wristTarget, 30, false);
         elbow.write(elbowTarget, 30, false);
         shoulderStepper.run();
@@ -208,18 +154,36 @@ void moveMotorsToPosition(long baseTarget, long shoulderTarget, int elbowTarget,
     }
     
     elbow.write(elbowTarget, 75, false);
+    
+    printCurrentPosition();
 }
 
-void reduceShoulderTorque(int elbowTarget, int shoulderTarget) {
-    if(shoulderStepper.currentPosition() >= 300 && shoulderTarget < 300) {
-        elbow.write(180, 100, true);
-    }
-    else if (shoulderStepper.currentPosition() <= -300 && shoulderTarget > -300) {
-        elbow.write(0, 100, true);
-    }
-    else {
-        elbow.write(elbowTarget, 30, false);
-    }
+void getPosition(double &x, double &y, double &z) {
+    double baseAngle = (baseStepper.currentPosition() * 360.0) / (STEPS_PER_REV * baseGearRatio);
+    double shoulderAngle = ((double)shoulderStepper.currentPosition() * 360.0 / (STEPS_PER_REV * shoulderGearRatio)) + 90.0;
+    double elbowAngle = elbow.read() - 90.0;
+
+    double baseRad = baseAngle * PI / 180.0;
+    double shoulderRad = shoulderAngle * PI / 180.0;
+    double elbowRad = elbowAngle * PI / 180.0;
+
+    double l = L1 * cos(shoulderRad) + L2 * cos(shoulderRad - elbowRad);
+    x = l * cos(baseRad);
+    y = l * sin(baseRad);
+    z = L1 * sin(shoulderRad) + L2 * sin(shoulderRad - elbowRad);
+}
+
+void printCurrentPosition() {
+    double currX, currY, currZ;
+    getPosition(currX, currY, currZ);
+
+    Serial.print("Current Position -> X: ");
+    Serial.print(currX);
+    Serial.print(" Y: ");
+    Serial.print(currY);
+    Serial.print(" Z: ");
+    Serial.println(currZ);
+    Serial.println();
 }
 
 void readSerial() {
@@ -236,24 +200,24 @@ void readSerial() {
 
 void processCommand(String cmd) {
     cmd.trim();
-    if (cmd == "Base_CW") {
+    if (cmd == "Right") {
         baseStepper.setSpeed(400);
     } 
-    else if (cmd == "Base_CCW") {
+    else if (cmd == "Left") {
         baseStepper.setSpeed(-400); 
     } 
-    else if (cmd == "Base_Stop") {
+    else if (cmd == "Horizontal_Stop") {
         baseStepper.setSpeed(0);
     }
 
   
-    else if (cmd == "Shoulder_CW") {
+    else if (cmd == "Up") {
         shoulderStepper.setSpeed(400);
     } 
-    else if (cmd == "Shoulder_CCW") {
+    else if (cmd == "Down") {
         shoulderStepper.setSpeed(-400);
     } 
-    else if (cmd == "Shoulder_Stop") {
+    else if (cmd == "Vertical_Stop") {
         shoulderStepper.setSpeed(0);
     }
 
